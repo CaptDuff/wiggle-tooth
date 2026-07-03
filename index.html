@@ -122,9 +122,47 @@
     .success p { line-height: 1.6; }
     .case-no { display: inline-block; margin-top: 8px; padding: 8px 16px; border-radius: 999px;
       background: rgba(255,216,77,.14); border: 1px dashed var(--gold); color: var(--gold); font-weight: bold; letter-spacing: 1px; }
-    .again { margin-top: 22px; background: none; border: 1px solid var(--lav); color: var(--lav);
-      padding: 10px 20px; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 14px; }
+    .success-actions { margin-top: 22px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .print-btn { background: linear-gradient(180deg, var(--gold), var(--gold-deep)); color: var(--ink);
+      border: none; padding: 12px 22px; border-radius: 10px; cursor: pointer; font-family: inherit;
+      font-size: 15px; font-weight: bold; box-shadow: 0 6px 16px rgba(255,183,51,.4); }
+    .print-btn:hover { transform: translateY(-1px); }
+    .again { background: none; border: 1px solid var(--lav); color: var(--lav);
+      padding: 12px 20px; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 15px; }
     .again:hover { background: rgba(200,182,255,.12); }
+
+    /* printable Guild document — hidden on screen, shown only when printing */
+    .print-doc { display: none; }
+    @media print {
+      body { background: #fff !important; }
+      .stars, .wrap { display: none !important; }
+      .print-doc { display: block !important; color: #2a2050; font-family: "Georgia", "Times New Roman", serif; }
+      @page { margin: 14mm; }
+    }
+    .pd-frame { border: 3px double #b8860b; border-radius: 14px; padding: 26px 30px; position: relative; }
+    .pd-frame::before { content: "✦ ✦ ✦"; position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+      background: #fff; padding: 0 12px; color: #b8860b; letter-spacing: 6px; font-size: 14px; }
+    .pd-head { text-align: center; border-bottom: 2px solid #e5c76b; padding-bottom: 14px; margin-bottom: 18px; }
+    .pd-crest { font-size: 46px; }
+    .pd-guild { font-size: 26px; color: #8a6d1a; margin: 4px 0 2px; letter-spacing: 1px; }
+    .pd-title { font-size: 14px; text-transform: uppercase; letter-spacing: 3px; color: #555; }
+    .pd-meta { display: flex; justify-content: space-between; font-size: 13px; color: #444; margin-bottom: 18px; }
+    .pd-meta strong { color: #8a6d1a; }
+    .pd-section { margin-bottom: 18px; }
+    .pd-h { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #b8860b;
+      border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 8px; }
+    .pd-row { display: flex; padding: 3px 0; font-size: 15px; }
+    .pd-row .k { width: 190px; color: #666; }
+    .pd-row .v { flex: 1; font-weight: bold; }
+    .pd-check { list-style: none; padding: 0; margin: 0; font-size: 15px; }
+    .pd-check li { padding: 4px 0 4px 28px; position: relative; }
+    .pd-check li::before { content: "☐"; position: absolute; left: 0; font-size: 18px; color: #b8860b; }
+    .pd-note { font-style: italic; background: #fffbe9; border-left: 3px solid #e5c76b; padding: 8px 12px; font-size: 14px; }
+    .pd-pocket { border: 2px dashed #b8860b; border-radius: 10px; text-align: center; padding: 20px; margin: 18px 0;
+      color: #8a6d1a; font-size: 14px; letter-spacing: 1px; }
+    .pd-sign { display: flex; justify-content: space-between; margin-top: 26px; font-size: 13px; color: #444; }
+    .pd-sign .line { border-top: 1.5px solid #333; width: 46%; padding-top: 4px; text-align: center; }
+    .pd-foot { text-align: center; margin-top: 20px; font-size: 12px; color: #999; }
 
     /* guild facts */
     .facts { margin-top: 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 14px; }
@@ -199,7 +237,10 @@
       <p id="successMsg"></p>
       <div class="case-no" id="caseNo"></div>
       <p style="margin-top:18px; font-size:14px; color:var(--lav)">Keep this tooth safe. The Guild has added it to tonight's flight plan. 🌙</p>
-      <button class="again" id="againBtn">File another report</button>
+      <div class="success-actions">
+        <button class="print-btn" id="printBtn">🖨️ Print the report &amp; flight plan</button>
+        <button class="again" id="againBtn">File another report</button>
+      </div>
     </div>
 
     <div class="facts">
@@ -213,6 +254,8 @@
       A magical service for families. Reports are received with great care and sparkle. 💫
     </footer>
   </div>
+
+  <div class="print-doc" id="printDoc" aria-hidden="true"></div>
 
   <script>
     var wiggleLabels = ["", "Barely a jiggle", "A little wiggly", "Properly wobbly", "Super wiggly!", "Hanging by a thread!"];
@@ -229,6 +272,51 @@
       return 'WT-' + n + '-' + String.fromCharCode(65 + Math.floor(Math.random()*26)) + String.fromCharCode(65 + Math.floor(Math.random()*26));
     }
 
+    var fairyFirst = ['Twinkle','Pip','Fern','Dewdrop','Sable','Wisp','Marigold','Juniper','Clover','Bramble','Hazel','Nixie'];
+    var fairyLast  = ['Silverwing','Moonbeam','Thistledown','Starfall','Gossamer','Nightbreeze','Glimmer','Dewhollow','Frostpetal'];
+    function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+    function renderPrintDoc(r) {
+      var reward = r.wiggle >= 4 ? "First-class reward authorised — this tooth is nearly ready!"
+                 : r.wiggle >= 3 ? "Standard reward prepared. Keep the pillow ready."
+                 : "Reward on standby. A little more wiggling to go.";
+      document.getElementById('printDoc').innerHTML =
+        '<div class="pd-frame">' +
+          '<div class="pd-head">' +
+            '<div class="pd-crest">🦷</div>' +
+            '<div class="pd-guild">The Tooth Fairy Guild</div>' +
+            '<div class="pd-title">Official Wiggly Tooth Report &amp; Flight Plan</div>' +
+          '</div>' +
+          '<div class="pd-meta"><span><strong>Case No.</strong> ' + r.caseNo + '</span>' +
+            '<span><strong>Filed:</strong> ' + r.date + '</span></div>' +
+          '<div class="pd-section"><div class="pd-h">The Report</div>' +
+            row('Child', r.child) +
+            (r.age ? row('Age', r.age) : '') +
+            row('Tooth in question', r.tooth) +
+            row('Wiggle level', r.wiggleLabel) +
+            row('Expected to come out', r.when) +
+          '</div>' +
+          '<div class="pd-section"><div class="pd-h">Flight Plan</div>' +
+            row('Assigned fairy', r.fairy) +
+            row('Pickup window', r.pickup) +
+            row('Reward status', reward) +
+          '</div>' +
+          '<div class="pd-section"><div class="pd-h">Approach Checklist</div>' +
+            '<ul class="pd-check">' +
+              '<li>Confirm the tooth has fully come out</li>' +
+              '<li>Silent landing — mind squeaky floorboards</li>' +
+              '<li>Collect tooth &amp; leave the reward</li>' +
+              '<li>Record tooth in the Guild ledger</li>' +
+            '</ul>' +
+          '</div>' +
+          (r.notes ? '<div class="pd-section"><div class="pd-h">Note from the Family</div><div class="pd-note">' + escapeHtml(r.notes) + '</div></div>' : '') +
+          '<div class="pd-pocket">★ &nbsp; TOOTH VERIFICATION POCKET &nbsp; ★<br><span style="font-size:12px">(place the tooth here for the fairy)</span></div>' +
+          '<div class="pd-sign"><div class="line">Registrar of the Guild</div><div class="line">' + r.date + '</div></div>' +
+          '<div class="pd-foot">Wiggle Tooth · wiggle-tooth.com · Received with great care and sparkle 💫</div>' +
+        '</div>';
+    }
+    function row(k, v) { return '<div class="pd-row"><span class="k">' + k + '</span><span class="v">' + escapeHtml(String(v)) + '</span></div>'; }
+
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var child = document.getElementById('child').value.trim();
@@ -236,19 +324,37 @@
       if (!child) { document.getElementById('child').focus(); return; }
       if (!tooth) { document.getElementById('tooth').focus(); return; }
 
-      var wl = wiggleLabels[wiggle.value].toLowerCase().replace('!','');
+      var report = {
+        caseNo: caseNumber(),
+        date: new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
+        child: child,
+        age: document.getElementById('age').value.trim(),
+        tooth: tooth,
+        wiggle: parseInt(wiggle.value, 10),
+        wiggleLabel: wiggleLabels[wiggle.value],
+        when: document.getElementById('when').value,
+        notes: document.getElementById('notes').value.trim(),
+        fairy: pick(fairyFirst) + ' ' + pick(fairyLast),
+        pickup: 'The night the tooth comes out (' + document.getElementById('when').value.toLowerCase() + ')'
+      };
+
+      var wl = report.wiggleLabel.toLowerCase().replace('!','');
       document.getElementById('successTitle').textContent = "Thank you, the Guild has the report! 🎉";
       document.getElementById('successMsg').innerHTML =
-        "A fairy has been assigned to <strong>" + escapeHtml(child) + "</strong>. " +
+        "Fairy <strong>" + escapeHtml(report.fairy) + "</strong> has been assigned to <strong>" + escapeHtml(child) + "</strong>. " +
         "We've logged that the " + escapeHtml(tooth.toLowerCase()) + " is <strong>" + wl + "</strong> " +
         "and we'll be watching closely.";
-      document.getElementById('caseNo').textContent = 'Case No. ' + caseNumber();
+      document.getElementById('caseNo').textContent = 'Case No. ' + report.caseNo;
+
+      renderPrintDoc(report);
 
       formCard.style.display = 'none';
       success.classList.add('show');
       success.scrollIntoView({ behavior: 'smooth', block: 'center' });
       celebrate();
     });
+
+    document.getElementById('printBtn').addEventListener('click', function () { window.print(); });
 
     document.getElementById('againBtn').addEventListener('click', function () {
       form.reset();
